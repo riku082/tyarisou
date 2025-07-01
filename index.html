@@ -331,10 +331,10 @@
     function drawGround() {
         // 背景画像を描画
         if (haikeiImg.complete && haikeiImg.naturalWidth > 0) {
-            const bgW = (canvas.width / dpr) * 0.9;
-            const bgH = (canvas.height / dpr) * 0.9;
+            const bgW = (canvas.width / dpr) * 0.98;
+            const bgH = (canvas.height / dpr) * 0.98;
             const bgX = ((canvas.width / dpr) - bgW) / 2;
-            const bgY = ((canvas.height / dpr) - bgH) / 2;
+            const bgY = (canvas.height / dpr) * 0.02; // 上端から2%下
             ctx.drawImage(haikeiImg, bgX, bgY, bgW, bgH);
         } else {
             ctx.fillStyle = '#f0f8ff';
