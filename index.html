@@ -332,6 +332,13 @@
     }
 
     function drawGround() {
+        // 背景画像を描画
+        if (haikeiImg.complete && haikeiImg.naturalWidth > 0) {
+            ctx.drawImage(haikeiImg, 0, 0, canvas.width / dpr, canvas.height / dpr);
+        } else {
+            ctx.fillStyle = '#f0f8ff';
+            ctx.fillRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+        }
         ctx.fillStyle = '#654321';
         ctx.fillRect(0, canvas.height / dpr - groundHeight, canvas.width / dpr, groundHeight);
         ctx.fillStyle = '#228b22';
@@ -625,6 +632,10 @@
     // --- 敵画像の読み込み ---
     const enemyImg = new Image();
     enemyImg.src = 'kuribo.png';
+
+    // --- 背景画像の読み込み ---
+    const haikeiImg = new Image();
+    haikeiImg.src = 'haikei.png';
 
 </script>
 
