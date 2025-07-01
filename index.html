@@ -200,15 +200,16 @@
     function setupCanvas() {
         const container = document.getElementById('ui-container');
         dpr = window.devicePixelRatio || 1;
-        // スマホでは画面幅いっぱいに
-        const width = Math.min(window.innerWidth * 0.98, 800);
-        canvas.width = width * dpr;
-        // スマホ（幅600px未満）のみ縦長に
+        let width, height;
         if (window.innerWidth < 600) {
-            canvas.height = (width * 1.2) * dpr;
+            width = window.innerWidth * 0.9;
+            height = width * 1.1;
         } else {
-            canvas.height = (width * 0.9) * dpr;
+            width = Math.min(window.innerWidth * 0.98, 800);
+            height = width * 0.9;
         }
+        canvas.width = width * dpr;
+        canvas.height = height * dpr;
         if (canvas.height > window.innerHeight * 0.98 * dpr) {
             canvas.height = window.innerHeight * 0.98 * dpr;
         }
