@@ -203,7 +203,12 @@
         // スマホでは画面幅いっぱいに
         const width = Math.min(window.innerWidth * 0.98, 800);
         canvas.width = width * dpr;
-        canvas.height = (width * 0.9) * dpr;
+        // スマホ（幅600px未満）のみ縦長に
+        if (window.innerWidth < 600) {
+            canvas.height = (width * 1.2) * dpr;
+        } else {
+            canvas.height = (width * 0.9) * dpr;
+        }
         if (canvas.height > window.innerHeight * 0.98 * dpr) {
             canvas.height = window.innerHeight * 0.98 * dpr;
         }
