@@ -331,8 +331,8 @@
     function drawGround() {
         // 背景画像を描画
         if (haikeiImg.complete && haikeiImg.naturalWidth > 0) {
-            const bgW = (canvas.width / dpr) * 0.8;
-            const bgH = (canvas.height / dpr) * 0.8;
+            const bgW = (canvas.width / dpr) * 0.9;
+            const bgH = (canvas.height / dpr) * 0.9;
             const bgX = ((canvas.width / dpr) - bgW) / 2;
             const bgY = ((canvas.height / dpr) - bgH) / 2;
             ctx.drawImage(haikeiImg, bgX, bgY, bgW, bgH);
