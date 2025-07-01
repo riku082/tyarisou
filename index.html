@@ -203,9 +203,9 @@
         // スマホでは画面幅いっぱいに
         const width = Math.min(window.innerWidth * 0.98, 800);
         canvas.width = width * dpr;
-        canvas.height = (width * 0.6) * dpr;
-        if (canvas.height > window.innerHeight * 0.8 * dpr) {
-            canvas.height = window.innerHeight * 0.8 * dpr;
+        canvas.height = (width * 0.9) * dpr;
+        if (canvas.height > window.innerHeight * 0.98 * dpr) {
+            canvas.height = window.innerHeight * 0.98 * dpr;
         }
         canvas.style.width = `${canvas.width / dpr}px`;
         canvas.style.height = `${canvas.height / dpr}px`;
@@ -264,8 +264,63 @@
         const pX = player.x;
         const pY = player.y;
 
-        // --- プレイヤー画像（kuribo.png）で描画 ---
-        ctx.drawImage(enemyImg, pX, pY - player.height, player.width, player.height);
+        // --- 自転車の描画 ---
+        ctx.strokeStyle = '#555';
+        ctx.lineWidth = 4;
+        // フレーム
+        ctx.beginPath();
+        ctx.moveTo(pX, pY - 15); // シートポスト
+        ctx.lineTo(pX + 15, pY - 30); // トップチューブ
+        ctx.lineTo(pX + 25, pY - 10); // ダウンチューブ
+        ctx.lineTo(pX, pY - 15);
+        ctx.stroke();
+        // ハンドル
+        ctx.beginPath();
+        ctx.moveTo(pX + 15, pY - 30);
+        ctx.lineTo(pX + 20, pY - 38);
+        ctx.stroke();
+        // タイヤ
+        ctx.beginPath();
+        ctx.arc(pX - 10, pY - 5, 10, 0, Math.PI * 2); // 後輪
+        ctx.arc(pX + 25, pY - 5, 10, 0, Math.PI * 2); // 前輪
+        ctx.fillStyle = '#111';
+        ctx.fill();
+
+        // --- 人の描画 ---
+        const riderColor = player.invincible ? '#FFD700' : '#333';
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = riderColor;
+        ctx.fillStyle = riderColor;
+
+        // 体
+        ctx.beginPath();
+        ctx.moveTo(pX, pY - 35); // 体の付け根
+        ctx.lineTo(pX + 10, pY - 30); // 体の終わり
+        ctx.stroke();
+
+        // 頭
+        ctx.beginPath();
+        ctx.arc(pX, pY - 45, 8, 0, Math.PI * 2); // 頭
+        ctx.fill();
+
+        // ヘルメット
+        ctx.fillStyle = player.invincible ? '#FFD700' : '#e53e3e'; // 赤いヘルメット
+        ctx.beginPath();
+        ctx.arc(pX, pY - 45, 8, Math.PI, Math.PI * 2);
+        ctx.fill();
+
+        // 腕
+        ctx.beginPath();
+        ctx.moveTo(pX + 5, pY - 33);
+        ctx.lineTo(pX + 18, pY - 36);
+        ctx.stroke();
+
+        // 足
+        ctx.beginPath();
+        ctx.moveTo(pX + 10, pY - 30);
+        ctx.lineTo(pX + 5, pY - 18);
+        ctx.lineTo(pX + 15, pY - 18);
+        ctx.stroke();
 
         ctx.restore(); // 描画設定を元に戻す
     }
