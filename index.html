@@ -350,6 +350,18 @@
             ctx.fillStyle = '#f0f8ff';
             ctx.fillRect(0, 0, canvas.width / dpr, canvas.height / dpr);
         }
+        // 無敵状態ならmuteki.pngを中央に大きく半透明で描画
+        if (player && player.invincible && mutekiImg.complete && mutekiImg.naturalWidth > 0) {
+            ctx.save();
+            ctx.globalAlpha = 0.5;
+            const mw = (canvas.width / dpr) * 0.5;
+            const mh = (canvas.height / dpr) * 0.5;
+            const mx = ((canvas.width / dpr) - mw) / 2;
+            const my = ((canvas.height / dpr) - mh) / 2;
+            ctx.drawImage(mutekiImg, mx, my, mw, mh);
+            ctx.globalAlpha = 1.0;
+            ctx.restore();
+        }
         ctx.fillStyle = '#654321';
         ctx.fillRect(0, canvas.height / dpr - groundHeight, canvas.width / dpr, groundHeight);
         ctx.fillStyle = '#228b22';
@@ -647,6 +659,10 @@
     // --- 背景画像の読み込み ---
     const haikeiImg = new Image();
     haikeiImg.src = 'haikei.png';
+
+    // --- 無敵スター画像の読み込み ---
+    const mutekiImg = new Image();
+    mutekiImg.src = 'muteki.png';
 
 </script>
 
