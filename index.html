@@ -7,6 +7,9 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700&display=swap" rel="stylesheet">
+    <!-- Firebase CDN -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
     <style>
         body {
             font-family: 'M PLUS Rounded 1c', sans-serif;
@@ -131,6 +134,12 @@
             <button id="restartButton">もう一度遊ぶ</button>
         </div>
     </div>
+</div>
+
+<!-- ランキング表示エリア -->
+<div id="ranking" style="margin:2rem auto; max-width:400px; text-align:center;">
+  <h2 style="font-size:1.3rem; font-weight:bold; margin-bottom:0.5rem;">ランキングTOP10</h2>
+  <ol id="ranking-list" style="padding:0; list-style:none;"></ol>
 </div>
 
 <script>
@@ -616,6 +625,9 @@
             localStorage.setItem(HIGH_SCORE_KEY, highScore);
             finalScoreEl.innerText += ' (ハイスコア更新！)';
         }
+        // スコア送信＆ランキング取得
+        sendScoreToRanking(score);
+        fetchRanking();
         gameOverScreen.classList.remove('hidden');
     }
     
@@ -683,6 +695,58 @@
     // --- 夕焼け画像の読み込み ---
     const yuuyakeImg = new Image();
     yuuyakeImg.src = 'yuuyake.png';
+
+    // --- Firebase初期化 ---
+    const firebaseConfig = {
+      apiKey: "AIzaSyC_HcHZGly2GijG7Y07oSZSjrxP3CUCMRA",
+      authDomain: "abab-3k6tdx.firebaseapp.com",
+      projectId: "abab-3k6tdx",
+      storageBucket: "abab-3k6tdx.firebasestorage.app",
+      messagingSenderId: "5046366384",
+      appId: "1:5046366384:web:643cef12aa53f470250b75"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // --- ニックネーム登録（初回のみ） ---
+    let nickname = localStorage.getItem('nickname');
+    if (!nickname) {
+      nickname = prompt('ニックネームを入力してください（10文字以内）');
+      if (nickname) {
+        nickname = nickname.slice(0, 10);
+        localStorage.setItem('nickname', nickname);
+      }
+    }
+
+    // --- スコア送信 ---
+    function sendScoreToRanking(score) {
+      if (!nickname || !score || score <= 0) return;
+      db.collection('scores').add({
+        nickname: nickname,
+        score: score,
+        created: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    }
+
+    // --- ランキング取得 ---
+    function fetchRanking() {
+      db.collection('scores')
+        .orderBy('score', 'desc')
+        .limit(10)
+        .get()
+        .then(snapshot => {
+          const ranking = [];
+          snapshot.forEach(doc => ranking.push(doc.data()));
+          showRanking(ranking);
+        });
+    }
+
+    function showRanking(ranking) {
+      const el = document.getElementById('ranking-list');
+      el.innerHTML = ranking.map((r, i) =>
+        `<li style="margin-bottom:0.3rem; font-size:1.1rem;">${i+1}位: <span style='font-weight:bold;'>${r.nickname}</span> - <span style='color:#e67e22;'>${r.score}</span></li>`
+      ).join('');
+    }
 
 </script>
 
