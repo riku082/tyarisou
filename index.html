@@ -232,7 +232,7 @@
         
         groundHeight = canvas.height / dpr * 0.15;
         gravity = 0.6;
-        gameSpeed = (window.innerWidth < 600) ? 3 : 4;
+        gameSpeed = (window.innerWidth < 600) ? 3 : 3;
         score = 0;
         gameOver = false;
         jumpForce = 15;
@@ -582,7 +582,7 @@
 
         score++;
         scoreEl.innerText = `スコア: ${score}`;
-        gameSpeed += (window.innerWidth < 600) ? 0.0015 : 0.002;
+        gameSpeed += (window.innerWidth < 600) ? 0.0015 : 0.001;
 
         requestAnimationFrame(gameLoop);
     }
