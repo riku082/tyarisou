@@ -354,8 +354,8 @@
         if (player && player.invincible && mutekiImg.complete && mutekiImg.naturalWidth > 0) {
             ctx.save();
             ctx.globalAlpha = 0.5;
-            const mw = (canvas.width / dpr) * 0.5;
-            const mh = (canvas.height / dpr) * 0.5;
+            const mw = (canvas.width / dpr) * 0.7;
+            const mh = (canvas.height / dpr) * 0.7;
             const mx = ((canvas.width / dpr) - mw) / 2;
             const my = ((canvas.height / dpr) - mh) / 2;
             ctx.drawImage(mutekiImg, mx, my, mw, mh);
