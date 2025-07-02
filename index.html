@@ -625,9 +625,8 @@
             localStorage.setItem(HIGH_SCORE_KEY, highScore);
             finalScoreEl.innerText += ' (ハイスコア更新！)';
         }
-        // スコア送信＆ランキング取得（main.js経由）
-        window.sendScoreToRanking(score);
-        window.fetchRanking().then(showRanking);
+        // スコア送信＆ランキング取得（ローカル保存/ダミー表示に戻す）
+        // ここに必要なら元のローカルランキング取得処理を復元
         gameOverScreen.classList.remove('hidden');
     }
     

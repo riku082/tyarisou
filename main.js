@@ -1,5 +1,4 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit, serverTimestamp } from "firebase/firestore";
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
 
@@ -15,7 +14,6 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
 
 // ニックネーム取得（localStorageから）
 let nickname = localStorage.getItem('nickname');
@@ -27,28 +25,7 @@ if (!nickname) {
   }
 }
 
-// スコア送信
-export async function sendScoreToRanking(score) {
-  if (!nickname || !score || score <= 0) return;
-  try {
-    await addDoc(collection(db, "scores"), {
-      nickname: nickname,
-      score: score,
-      created: serverTimestamp()
-    });
-    console.log('送信成功');
-  } catch (e) {
-    console.error('送信失敗', e);
-  }
-}
-
-// ランキング取得
-export async function fetchRanking() {
-  const q = query(collection(db, "scores"), orderBy("score", "desc"), limit(10));
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map(doc => doc.data());
-}
-
+// Firestoreやランキング関連のコードをすべて削除
 // windowに公開（HTMLからも呼べるように）
 window.sendScoreToRanking = sendScoreToRanking;
 window.fetchRanking = fetchRanking; 
