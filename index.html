@@ -339,17 +339,29 @@
     }
 
     function drawGround() {
-        // スコア2000超えでyuuyake.png、それ以外はhaikei.png
-        let bgImg = haikeiImg;
+        // スコア2000超えでyuuyake.png＋オレンジ背景
         if (typeof score !== 'undefined' && score > 2000) {
-            bgImg = yuuyakeImg;
-        }
-        if (bgImg.complete && bgImg.naturalWidth > 0) {
+            // オレンジで塗りつぶし
+            ctx.fillStyle = '#ffb347';
+            ctx.fillRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+            // yuuyake.pngを中央に大きく半透明で重ねる
+            if (yuuyakeImg.complete && yuuyakeImg.naturalWidth > 0) {
+                ctx.save();
+                ctx.globalAlpha = 0.85;
+                const bgW = (canvas.width / dpr) * 0.9;
+                const bgH = (canvas.height / dpr) * 0.9;
+                const bgX = ((canvas.width / dpr) - bgW) / 2;
+                const bgY = (canvas.height / dpr) * 0.05;
+                ctx.drawImage(yuuyakeImg, bgX, bgY, bgW, bgH);
+                ctx.globalAlpha = 1.0;
+                ctx.restore();
+            }
+        } else if (haikeiImg.complete && haikeiImg.naturalWidth > 0) {
             const bgW = (canvas.width / dpr) * 0.98;
             const bgH = (canvas.height / dpr) * 0.98;
             const bgX = ((canvas.width / dpr) - bgW) / 2;
             const bgY = (canvas.height / dpr) * 0.02;
-            ctx.drawImage(bgImg, bgX, bgY, bgW, bgH);
+            ctx.drawImage(haikeiImg, bgX, bgY, bgW, bgH);
         } else {
             ctx.fillStyle = '#f0f8ff';
             ctx.fillRect(0, 0, canvas.width / dpr, canvas.height / dpr);
