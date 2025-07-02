@@ -339,18 +339,17 @@
     }
 
     function drawGround() {
-        // スコア2000超えで背景をオレンジ色に
-        const isOrange = (typeof score !== 'undefined' && score > 2000);
-        // 背景画像を描画
-        if (isOrange) {
-            ctx.fillStyle = '#ffb347';
-            ctx.fillRect(0, 0, canvas.width / dpr, canvas.height / dpr);
-        } else if (haikeiImg.complete && haikeiImg.naturalWidth > 0) {
+        // スコア2000超えでyuuyake.png、それ以外はhaikei.png
+        let bgImg = haikeiImg;
+        if (typeof score !== 'undefined' && score > 2000) {
+            bgImg = yuuyakeImg;
+        }
+        if (bgImg.complete && bgImg.naturalWidth > 0) {
             const bgW = (canvas.width / dpr) * 0.98;
             const bgH = (canvas.height / dpr) * 0.98;
             const bgX = ((canvas.width / dpr) - bgW) / 2;
-            const bgY = (canvas.height / dpr) * 0.02; // 上端から2%下
-            ctx.drawImage(haikeiImg, bgX, bgY, bgW, bgH);
+            const bgY = (canvas.height / dpr) * 0.02;
+            ctx.drawImage(bgImg, bgX, bgY, bgW, bgH);
         } else {
             ctx.fillStyle = '#f0f8ff';
             ctx.fillRect(0, 0, canvas.width / dpr, canvas.height / dpr);
@@ -668,6 +667,10 @@
     // --- 無敵スター画像の読み込み ---
     const mutekiImg = new Image();
     mutekiImg.src = 'muteki.png';
+
+    // --- 夕焼け画像の読み込み ---
+    const yuuyakeImg = new Image();
+    yuuyakeImg.src = 'yuuyake.png';
 
 </script>
 
