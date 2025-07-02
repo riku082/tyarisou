@@ -1,4 +1,3 @@
-
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
@@ -7,13 +6,17 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700&display=swap" rel="stylesheet">
-    <!-- Firebase CDN -->
+    <!-- Firebase App (the core Firebase SDK) -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <!-- Firestore -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
     <style>
         body {
             font-family: 'M PLUS Rounded 1c', sans-serif;
-            touch-action: manipulation; /* ダブルタップによるズームを無効化 */
+            touch-action: manipulation;
+            margin: 0;
+            padding: 0;
+            background: #e0f2fe;
         }
         canvas {
             background-color: #f0f8ff;
@@ -21,85 +24,173 @@
             margin: 0 auto;
             border-radius: 0.5rem;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            max-width: 100vw;
+            max-height: 100vh;
+            z-index: 1;
         }
         .game-container {
             display: flex;
             flex-direction: column;
-            justify-content: center;
+            justify-content: flex-start;
             align-items: center;
             height: 100vh;
+            min-height: 100vh;
             background-color: #e0f2fe;
+            margin: 0;
+            padding: 0;
+            overflow: hidden; /* ここだけに指定 */
         }
         #ui-container {
             position: relative;
-            width: 90%;
-            max-width: 800px;
+            width: 100vw;
+            max-width: 100vw;
+            height: 100vh;
+            max-height: 100vh;
+            margin: 0;
+            padding: 0;
         }
-        #score, #high-score {
+        #score, #high-score, #invincible-timer-display {
             position: absolute;
-            top: 1rem;
-            font-size: 1.5rem;
+            left: 0.7rem;
+            font-size: 1.1rem;
             font-weight: bold;
             color: #1e3a8a;
             text-shadow: 1px 1px 2px white;
+            z-index: 10;
+            background: rgba(255,255,255,0.7);
+            border-radius: 0.5rem;
+            padding: 0.2rem 0.7rem;
+            margin: 0;
+            box-sizing: border-box;
         }
         #score {
-            left: 1rem;
+            top: 0.7rem;
         }
         #high-score {
-            right: 1rem;
+            top: 2.2rem;
+        }
+        #invincible-timer-display {
+            top: 3.7rem;
+            color: #d97706;
+            font-size: 1rem;
         }
         #muteButton {
             position: absolute;
-            top: 4.5rem;
-            right: 1rem;
+            top: 3.5rem;
+            right: 0.5rem;
             font-size: 1.5rem;
             background: none;
             border: none;
             cursor: pointer;
         }
-        #invincible-timer-display {
-            position: absolute;
-            top: 4.5rem;
-            left: 1rem;
-            font-size: 1.2rem;
-            font-weight: bold;
-            color: #d97706; /* gold */
-        }
         #gameOverScreen {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
+            position: fixed;
+            z-index: 9999;
+            left: 0;
+            top: 0;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
             text-align: center;
-            background-color: rgba(255, 255, 255, 0.8);
-            padding: 2rem;
+            background-color: rgba(255, 255, 255, 0.85);
+            padding: 1rem 0.5rem;
             border-radius: 1rem;
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.15);
         }
-        #restartButton {
-            margin-top: 1rem;
-            padding: 0.75rem 1.5rem;
-            font-size: 1.25rem;
+        #gameOverScreen h2 {
+            font-size: 2.2rem;
+            margin-bottom: 1.2rem;
+            letter-spacing: 0.1em;
+        }
+        #finalScore {
+            color: #222 !important;
+            font-size: 1.5rem !important;
             font-weight: bold;
-            color: white;
-            background: linear-gradient(145deg, #3b82f6, #2563eb);
-            border: none;
-            border-radius: 0.5rem;
-            cursor: pointer;
-            transition: all 0.2s ease-in-out;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2vw;
+            margin-top: 2vw;
+            background: rgba(255,255,255,0.85);
+            border-radius: 1vw;
+            display: block;
+            padding: 1vw 0;
+            text-align: center;
+            z-index: 10000;
+            position: relative;
         }
-        #restartButton:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        #restartButton, #backToTitleButton {
+            width: 90%;
+            max-width: 300px;
+            margin: 0.5rem auto 0 auto;
+            display: block;
         }
         #startScreen {
-             position: absolute;
-            top: 50%;
+            position: fixed !important;
+            z-index: 10000 !important;
             left: 50%;
+            top: 50%;
             transform: translate(-50%, -50%);
             text-align: center;
+            padding: 1rem 0.5rem;
+            width: 90vw;
+            max-width: 350px;
+            background: rgba(255,255,255,0.9);
+            border-radius: 1rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.10);
+        }
+        #rankingModal {
+            z-index: 200 !important;
+        }
+        #startGameButton, #showRankingButton {
+            z-index: 200 !important;
+            position: relative;
+        }
+        #showRankingButton {
+            min-width: 44px;
+            min-height: 44px;
+            padding: 1rem 2rem;
+            font-size: 1.2rem;
+            pointer-events: auto !important;
+            z-index: 10001 !important;
+            position: relative;
+        }
+        .hidden {
+            display: none !important;
+        }
+        html, body {
+            overflow: hidden !important;
+            position: fixed;
+            width: 100vw;
+            height: 100vh;
+            top: 0;
+            left: 0;
+        }
+        @media (max-width: 600px) {
+            #gameOverScreen h2 {
+                font-size: 6vw;
+                margin-bottom: 3vw;
+            }
+            #finalScore {
+                font-size: 4.5vw !important;
+                margin-bottom: 3vw;
+                margin-top: 2vw;
+                padding: 2vw 0;
+            }
+            #restartButton, #backToTitleButton {
+                font-size: 4vw;
+                padding: 3vw 0;
+                margin-bottom: 2vw;
+            }
+            #score, #high-score, #invincible-timer-display {
+                font-size: 3.5vw;
+                padding: 0.2rem 0.6rem;
+                left: 1vw;
+            }
+            #score { top: 1vw; }
+            #high-score { top: 6vw; }
+            #invincible-timer-display { top: 11vw; }
+            #invincible-timer-display { font-size: 3vw; }
         }
     </style>
     <!-- OGP & Twitter Card設定 -->
@@ -127,22 +218,30 @@
             <div style="text-align:center; color:#888; font-size:1rem; margin-bottom:0.5rem; font-family:'M PLUS Rounded 1c',sans-serif;">ver.geoge</div>
             <h1 class="text-4xl font-bold text-gray-800 mb-4">geosys run</h1>
             <p class="text-lg text-gray-600">スペースキー or タップでジャンプ！<br>⭐アイテムで5秒間無敵！</p>
+            <button id="startGameButton" style="margin:1rem 0.5rem 0 0; padding:0.75rem 1.5rem; font-size:1.2rem; font-weight:bold; color:white; background:linear-gradient(145deg,#3b82f6,#2563eb); border:none; border-radius:0.5rem; cursor:pointer;">ゲームスタート</button>
+            <button id="showRankingButton" style="margin:1rem 0 0 0.5rem; padding:0.75rem 1.5rem; font-size:1.2rem; font-weight:bold; color:#2563eb; background:white; border:2px solid #2563eb; border-radius:0.5rem; cursor:pointer;">ランキング表示</button>
         </div>
         <div id="gameOverScreen" class="hidden">
             <h2 class="text-3xl font-bold text-red-600">ゲームオーバー</h2>
             <p id="finalScore" class="text-xl mt-2"></p>
             <button id="restartButton">もう一度遊ぶ</button>
+            <button id="backToTitleButton" style="margin-top:0.5rem; padding:0.75rem 1.5rem; font-size:1.1rem; font-weight:bold; color:#2563eb; background:white; border:2px solid #2563eb; border-radius:0.5rem; cursor:pointer;">タイトルに戻る</button>
+            <ol id="ranking-list" style="padding:0; list-style:none; margin-top:1rem;"></ol>
         </div>
     </div>
 </div>
 
 <!-- ランキング表示エリア -->
-<div id="ranking" style="margin:2rem auto; max-width:400px; text-align:center;">
-  <h2 style="font-size:1.3rem; font-weight:bold; margin-bottom:0.5rem;">ランキングTOP10</h2>
-  <ol id="ranking-list" style="padding:0; list-style:none;"></ol>
+<div id="rankingModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.3); z-index:1000; justify-content:center; align-items:center;">
+  <div style="background:white; border-radius:1rem; padding:2rem; max-width:400px; width:90vw; text-align:center; box-shadow:0 8px 16px rgba(0,0,0,0.2); position:relative;">
+    <h2 style="font-size:1.3rem; font-weight:bold; margin-bottom:0.5rem;">ランキングTOP10</h2>
+    <ol id="ranking-list-modal" style="padding:0; list-style:none;"></ol>
+    <button id="closeRankingButton" style="margin-top:1.5rem; padding:0.75rem 1.5rem; font-size:1.1rem; font-weight:bold; color:#2563eb; background:white; border:2px solid #2563eb; border-radius:0.5rem; cursor:pointer;">タイトルに戻る</button>
+  </div>
 </div>
 
 <script>
+document.addEventListener('DOMContentLoaded', function() {
     // --- 初期設定 ---
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
@@ -154,12 +253,16 @@
     const startScreen = document.getElementById('startScreen');
     const muteButton = document.getElementById('muteButton');
     const invincibleTimerDisplay = document.getElementById('invincible-timer-display');
+    const backToTitleButton = document.getElementById('backToTitleButton');
+    const startGameButton = document.getElementById('startGameButton');
+    const showRankingButton = document.getElementById('showRankingButton');
 
     // --- ゲーム変数 ---
     let player, groundHeight, gravity, gameSpeed, obstacles, powerUps, enemies, score, highScore, gameOver, jumpForce, dpr;
     let gameStarted = false;
     let bgmSynth, bgmSequence, jumpSfx, itemSfx, cheatSfx;
     let invincibleTimeout;
+    let audioInitialized = false;
     
     // --- 隠しコマンド関連 ---
     let cheatModeActive = false;
@@ -171,6 +274,8 @@
 
     // --- オーディオ設定 ---
     function setupAudio() {
+        if (audioInitialized) return;
+        audioInitialized = true;
         // BGMシンセサイザー
         bgmSynth = new Tone.PolySynth(Tone.Synth, {
             oscillator: { type: 'square' },
@@ -199,11 +304,11 @@
             volume: -8
         }).toDestination();
         
-        // 隠しコマンド成功時の効果音（目立たないように）
+        // 隠しコマンド成功時の効果音
         cheatSfx = new Tone.Synth({
             oscillator: { type: 'sine' },
             envelope: { attack: 0.001, decay: 0.1, sustain: 0, release: 0.1 },
-            volume: -25 // 非常に小さい音量
+            volume: -25
         }).toDestination();
     }
 
@@ -219,10 +324,12 @@
     function setupCanvas() {
         const container = document.getElementById('ui-container');
         dpr = window.devicePixelRatio || 1;
-        let width, height;
+        let width = window.innerWidth;
+        let height = window.innerHeight;
+        // スマホでアドレスバー分を考慮して少し余裕を持たせる
         if (window.innerWidth < 600) {
-            width = window.innerWidth * 0.85;
-            height = window.innerHeight * 0.7;
+            width = window.innerWidth;
+            height = window.innerHeight * 0.98;
         } else {
             width = Math.min(window.innerWidth * 0.98, 800);
             height = width * 0.9;
@@ -231,12 +338,12 @@
         canvas.height = height * dpr;
         canvas.style.width = `${width}px`;
         canvas.style.height = `${height}px`;
-        ctx.setTransform(1, 0, 0, 1, 0, 0); // リセット
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.scale(dpr, dpr);
     }
 
     // --- ゲームの初期化 ---
-    function init() {
+    function init(showTitle = true) {
         setupCanvas();
         
         groundHeight = canvas.height / dpr * 0.15;
@@ -244,6 +351,7 @@
         gameSpeed = (window.innerWidth < 600) ? 3 : 4;
         score = 0;
         gameOver = false;
+        gameStarted = false;
         jumpForce = 15;
 
         player = {
@@ -268,7 +376,15 @@
 
         scoreEl.innerText = 'スコア: 0';
         gameOverScreen.classList.add('hidden');
-        startScreen.classList.remove('hidden');
+        if (showTitle) {
+            startScreen.classList.remove('hidden');
+            canvas.style.pointerEvents = 'none'; // タイトル画面中はcanvasを無効化
+            canvas.style.zIndex = 1;
+        } else {
+            startScreen.classList.add('hidden');
+            canvas.style.pointerEvents = 'auto'; // ゲーム中は有効化
+            canvas.style.zIndex = '';
+        }
         invincibleTimerDisplay.innerText = '';
         clearTimeout(invincibleTimeout);
     }
@@ -552,6 +668,7 @@
     }
     
     function activateInvincibility() {
+        if (player.invincible) return; // すでに無敵なら何もしない
         itemSfx.triggerAttackRelease('C5', '0.5');
         player.invincible = true;
         clearTimeout(invincibleTimeout);
@@ -576,13 +693,15 @@
     
     function jump() {
         if (!gameStarted) {
+            setupAudio();
+            startAudio();
             gameStarted = true;
             startScreen.classList.add('hidden');
-            startAudio();
+            // canvas.style.pointerEvents = 'auto';
             requestAnimationFrame(gameLoop);
         }
         if (player.jumps < 2) {
-            jumpSfx.triggerAttackRelease("C5", "8n");
+            // jumpSfx.triggerAttackRelease("C5", "8n");
             player.velocityY = -jumpForce;
             player.jumps++;
         }
@@ -614,20 +733,28 @@
     
     // --- ゲームオーバー処理 ---
     function showGameOver() {
-        clearTimeout(invincibleTimeout);
-        if (Tone.Transport.state === 'started') {
-            Tone.Transport.stop();
-            bgmSequence.stop(0);
-        }
+        // clearTimeout(invincibleTimeout);
+        // if (Tone.Transport.state === 'started') {
+        //     Tone.Transport.stop();
+        //     bgmSequence.stop(0);
+        // }
         finalScoreEl.innerText = `最終スコア: ${score}`;
         if (score > highScore) {
             highScore = score;
             localStorage.setItem(HIGH_SCORE_KEY, highScore);
             finalScoreEl.innerText += ' (ハイスコア更新！)';
         }
-        // スコア送信＆ランキング取得（ローカル保存/ダミー表示に戻す）
-        // ここに必要なら元のローカルランキング取得処理を復元
         gameOverScreen.classList.remove('hidden');
+        // window.sendScoreToRanking(score);
+        // window.fetchRanking().then(ranking => showRanking(ranking, 'ranking-list'));
+    }
+    
+    function showRanking(ranking, targetId = 'ranking-list-modal') {
+      const el = document.getElementById(targetId);
+      if (!el) return;
+      el.innerHTML = ranking.map((r, i) =>
+        `<li style="margin-bottom:0.3rem; font-size:1.1rem;">${i+1}位: <span style='font-weight:bold;'>${r.nickname}</span> - <span style='color:#e67e22;'>${r.score}</span></li>`
+      ).join('');
     }
     
     // --- リスタート処理 ---
@@ -636,47 +763,79 @@
         init();
     }
 
-    // --- イベントリスナー ---
-    document.addEventListener('keydown', e => {
-        const key = e.key.toLowerCase();
-        // ジャンプ処理
-        if (key === ' ') {
+    // --- イベントリスナー登録（ページロード時に一度だけ） ---
+    if (!window._charisoEventRegistered) {
+        document.addEventListener('keydown', e => {
+            const key = e.key.toLowerCase();
+            // ジャンプ処理
+            if (key === ' ') {
+                e.preventDefault();
+                if (!gameOver) jump();
+                return;
+            }
+            // 隠しコマンドの処理
+            if (!gameStarted) {
+                 // startAudio();
+            }
+            userInput.push(key);
+            userInput = userInput.slice(-cheatCode.length);
+            if (JSON.stringify(userInput) === JSON.stringify(cheatCode)) {
+                if (!cheatModeActive) {
+                    cheatModeActive = true;
+                    // cheatSfx.triggerAttackRelease('C3', '8n'); // 目立たない成功音
+                }
+            }
+        });
+        canvas.addEventListener('click', () => { if (!gameOver) jump(); });
+        canvas.addEventListener('touchstart', e => {
             e.preventDefault();
             if (!gameOver) jump();
-            return;
-        }
-        // 隠しコマンドの処理
-        if (!gameStarted) {
-             startAudio();
-        }
-        userInput.push(key);
-        userInput = userInput.slice(-cheatCode.length);
-        if (JSON.stringify(userInput) === JSON.stringify(cheatCode)) {
-            if (!cheatModeActive) {
-                cheatModeActive = true;
-                cheatSfx.triggerAttackRelease('C3', '8n'); // 目立たない成功音
-            }
-        }
-    });
-    canvas.addEventListener('click', () => { if (!gameOver) jump(); });
-    canvas.addEventListener('touchstart', e => {
-        e.preventDefault();
-        if (!gameOver) jump();
-    }, { passive: false });
-    // スマホでcanvas以外の場所でもジャンプできるように
-    document.body.addEventListener('touchstart', (e) => {
-        if (gameOver) return;
-        jump();
-    }, { passive: false });
-    restartButton.addEventListener('click', restartGame);
-    window.addEventListener('resize', init);
-    muteButton.addEventListener('click', () => {
-        Tone.Destination.mute = !Tone.Destination.mute;
-        muteButton.innerText = Tone.Destination.mute ? '🔇' : '🎵';
-    });
+        }, { passive: false });
+        // スマホでcanvas以外の場所でもジャンプできるように
+        document.body.addEventListener('touchstart', (e) => {
+            if (gameOver) return;
+            jump();
+        }, { passive: false });
+        restartButton.addEventListener('click', () => {
+            gameOverScreen.classList.add('hidden');
+            init(false);
+            gameStarted = false;
+            startScreen.classList.add('hidden');
+            jump();
+        });
+        backToTitleButton.addEventListener('click', () => { init(); });
+        window.addEventListener('resize', init);
+        muteButton.addEventListener('click', () => {
+            Tone.Destination.mute = !Tone.Destination.mute;
+            muteButton.innerText = Tone.Destination.mute ? '🔇' : '🎵';
+        });
+        startGameButton.addEventListener('click', () => {
+            startScreen.classList.add('hidden');
+            // canvas.style.pointerEvents = 'auto'; // ゲーム開始時に有効化
+            gameStarted = true;
+            // startAudio();
+            requestAnimationFrame(gameLoop);
+        });
+        showRankingButton.addEventListener('click', async () => {
+            startScreen.classList.add('hidden');
+            rankingModal.style.display = 'flex';
+            const ranking = await window.fetchRanking();
+            showRanking(ranking, 'ranking-list-modal');
+        });
+        // スマホのタップ補助: touchstartでclickを発火
+        showRankingButton.addEventListener('touchstart', function(e) {
+            e.preventDefault();
+            showRankingButton.click();
+        }, { passive: false });
+        closeRankingButton.addEventListener('click', () => {
+            rankingModal.style.display = 'none';
+            startScreen.classList.remove('hidden');
+        });
+        window._charisoEventRegistered = true;
+    }
 
     // --- ゲーム開始 ---
-    setupAudio();
+    // setupAudio();
     init();
 
     // --- 敵画像の読み込み ---
@@ -694,7 +853,7 @@
     // --- 夕焼け画像の読み込み ---
     const yuuyakeImg = new Image();
     yuuyakeImg.src = 'yuuyake.png';
-
+});
 </script>
 
 <!-- バージョン表記 -->
