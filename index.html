@@ -720,11 +720,16 @@
 
     // --- スコア送信 ---
     function sendScoreToRanking(score) {
+      console.log('送信データ:', nickname, score);
       if (!nickname || !score || score <= 0) return;
       db.collection('scores').add({
         nickname: nickname,
         score: score,
         created: firebase.firestore.FieldValue.serverTimestamp()
+      }).then(() => {
+        console.log('送信成功');
+      }).catch(e => {
+        console.error('送信失敗', e);
       });
     }
 
