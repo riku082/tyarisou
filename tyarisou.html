@@ -1,0 +1,576 @@
+
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>チャリ走風ゲーム</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'M PLUS Rounded 1c', sans-serif;
+            touch-action: manipulation; /* ダブルタップによるズームを無効化 */
+        }
+        canvas {
+            background-color: #f0f8ff;
+            display: block;
+            margin: 0 auto;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #e0f2fe;
+        }
+        #ui-container {
+            position: relative;
+            width: 90%;
+            max-width: 800px;
+        }
+        #score, #high-score {
+            position: absolute;
+            top: 1rem;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #1e3a8a;
+            text-shadow: 1px 1px 2px white;
+        }
+        #score {
+            left: 1rem;
+        }
+        #high-score {
+            right: 1rem;
+        }
+        #muteButton {
+            position: absolute;
+            top: 4.5rem;
+            right: 1rem;
+            font-size: 1.5rem;
+            background: none;
+            border: none;
+            cursor: pointer;
+        }
+        #invincible-timer-display {
+            position: absolute;
+            top: 4.5rem;
+            left: 1rem;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #d97706; /* gold */
+        }
+        #gameOverScreen {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+        }
+        #restartButton {
+            margin-top: 1rem;
+            padding: 0.75rem 1.5rem;
+            font-size: 1.25rem;
+            font-weight: bold;
+            color: white;
+            background: linear-gradient(145deg, #3b82f6, #2563eb);
+            border: none;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        #restartButton:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+        #startScreen {
+             position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+<div class="game-container">
+    <div id="ui-container">
+        <canvas id="gameCanvas"></canvas>
+        <div id="score">スコア: 0</div>
+        <div id="high-score">ハイスコア: 0</div>
+        <div id="invincible-timer-display"></div>
+        <button id="muteButton">🎵</button>
+        <div id="startScreen">
+            <img src="hyousi.png" alt="タイトル画像" style="max-width: 40%; margin: 0 auto 1rem; display: block; border-radius: 1rem; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+            <div style="text-align:center; color:#888; font-size:1rem; margin-bottom:0.5rem; font-family:'M PLUS Rounded 1c',sans-serif;">ver.geoge</div>
+            <h1 class="text-4xl font-bold text-gray-800 mb-4">チャリ走ゲーム</h1>
+            <p class="text-lg text-gray-600">スペースキー or タップでジャンプ！<br>⭐アイテムで5秒間無敵！</p>
+        </div>
+        <div id="gameOverScreen" class="hidden">
+            <h2 class="text-3xl font-bold text-red-600">ゲームオーバー</h2>
+            <p id="finalScore" class="text-xl mt-2"></p>
+            <button id="restartButton">もう一度遊ぶ</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- 初期設定 ---
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const scoreEl = document.getElementById('score');
+    const highScoreEl = document.getElementById('high-score');
+    const gameOverScreen = document.getElementById('gameOverScreen');
+    const finalScoreEl = document.getElementById('finalScore');
+    const restartButton = document.getElementById('restartButton');
+    const startScreen = document.getElementById('startScreen');
+    const muteButton = document.getElementById('muteButton');
+    const invincibleTimerDisplay = document.getElementById('invincible-timer-display');
+
+    // --- ゲーム変数 ---
+    let player, groundHeight, gravity, gameSpeed, obstacles, powerUps, enemies, score, highScore, gameOver, jumpForce, dpr;
+    let gameStarted = false;
+    let bgmSynth, bgmSequence, jumpSfx, itemSfx, cheatSfx;
+    let invincibleTimeout;
+    
+    // --- 隠しコマンド関連 ---
+    let cheatModeActive = false;
+    const cheatCode = ['c', 'h', 'e', 'a', 't'];
+    let userInput = [];
+
+
+    const HIGH_SCORE_KEY = 'chariso_high_score';
+
+    // --- オーディオ設定 ---
+    function setupAudio() {
+        // BGMシンセサイザー
+        bgmSynth = new Tone.PolySynth(Tone.Synth, {
+            oscillator: { type: 'square' },
+            envelope: { attack: 0.01, decay: 0.1, sustain: 0.2, release: 0.1 },
+        }).toDestination();
+        bgmSynth.volume.value = -15;
+
+        const melody = ['C4', 'E4', 'G4', 'E4', 'A4', 'G4', 'E4', 'G4', 'C4', 'E4', 'G4', 'E4', 'F4', 'E4', 'D4', null];
+        bgmSequence = new Tone.Sequence((time, note) => {
+            if (note) bgmSynth.triggerAttackRelease(note, '8n', time);
+        }, melody, '8n');
+        Tone.Transport.bpm.value = 130;
+        bgmSequence.loop = true;
+
+        // ジャンプ効果音
+        jumpSfx = new Tone.Synth({
+            oscillator: { type: 'sine' },
+            envelope: { attack: 0.005, decay: 0.1, sustain: 0, release: 0.1 },
+            volume: -10
+        }).toDestination();
+        
+        // アイテム取得効果音
+        itemSfx = new Tone.Synth({
+            oscillator: { type: 'triangle' },
+            envelope: { attack: 0.01, decay: 0.2, sustain: 0.1, release: 0.2 },
+            volume: -8
+        }).toDestination();
+        
+        // 隠しコマンド成功時の効果音（目立たないように）
+        cheatSfx = new Tone.Synth({
+            oscillator: { type: 'sine' },
+            envelope: { attack: 0.001, decay: 0.1, sustain: 0, release: 0.1 },
+            volume: -25 // 非常に小さい音量
+        }).toDestination();
+    }
+
+    async function startAudio() {
+        if (Tone.context.state !== 'running') await Tone.start();
+        if (bgmSequence.state !== 'started') {
+            Tone.Transport.start();
+            bgmSequence.start(0);
+        }
+    }
+
+    // --- 描画設定 ---
+    function setupCanvas() {
+        const container = document.getElementById('ui-container');
+        dpr = window.devicePixelRatio || 1;
+        // スマホでは画面幅いっぱいに
+        const width = Math.min(window.innerWidth * 0.98, 800);
+        canvas.width = width * dpr;
+        canvas.height = (width * 0.6) * dpr;
+        if (canvas.height > window.innerHeight * 0.8 * dpr) {
+            canvas.height = window.innerHeight * 0.8 * dpr;
+        }
+        canvas.style.width = `${canvas.width / dpr}px`;
+        canvas.style.height = `${canvas.height / dpr}px`;
+        ctx.setTransform(1, 0, 0, 1, 0, 0); // リセット
+        ctx.scale(dpr, dpr);
+    }
+
+    // --- ゲームの初期化 ---
+    function init() {
+        setupCanvas();
+        
+        groundHeight = canvas.height / dpr * 0.15;
+        gravity = 0.6;
+        gameSpeed = 5;
+        score = 0;
+        gameOver = false;
+        jumpForce = 15;
+
+        player = {
+            x: 50,
+            y: canvas.height / dpr - groundHeight,
+            width: 30,
+            height: 50,
+            velocityY: 0,
+            jumps: 0,
+            invincible: false
+        };
+
+        obstacles = [];
+        powerUps = [];
+        enemies = [];
+        
+        cheatModeActive = false;
+        userInput = [];
+        
+        highScore = localStorage.getItem(HIGH_SCORE_KEY) || 0;
+        highScoreEl.innerText = `ハイスコア: ${highScore}`;
+
+        scoreEl.innerText = 'スコア: 0';
+        gameOverScreen.classList.add('hidden');
+        startScreen.classList.remove('hidden');
+        invincibleTimerDisplay.innerText = '';
+        clearTimeout(invincibleTimeout);
+    }
+
+    // --- 描画関数 ---
+    function drawPlayer() {
+        ctx.save();
+        // 無敵状態の描画設定
+        if (player.invincible) {
+            ctx.shadowColor = 'yellow';
+            ctx.shadowBlur = 15;
+        }
+
+        // プレイヤーの座標を基準にする
+        const pX = player.x;
+        const pY = player.y;
+
+        // --- プレイヤー画像（kuribo.png）で描画 ---
+        ctx.drawImage(enemyImg, pX, pY - player.height, player.width, player.height);
+
+        ctx.restore(); // 描画設定を元に戻す
+    }
+
+    function drawGround() {
+        ctx.fillStyle = '#654321';
+        ctx.fillRect(0, canvas.height / dpr - groundHeight, canvas.width / dpr, groundHeight);
+        ctx.fillStyle = '#228b22';
+        ctx.fillRect(0, canvas.height / dpr - groundHeight, canvas.width / dpr, 10);
+    }
+
+    function drawObstacles() {
+        obstacles.forEach(obstacle => {
+            ctx.fillStyle = '#8b4513';
+            ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+        });
+    }
+    
+    function drawPowerUps() {
+        powerUps.forEach(item => {
+            ctx.save();
+            ctx.fillStyle = 'gold';
+            ctx.shadowColor = 'yellow';
+            ctx.shadowBlur = 10;
+            ctx.beginPath();
+            for (let i = 0; i < 5; i++) {
+                ctx.lineTo(
+                    item.x + item.size * Math.cos(i * 2 * Math.PI / 5 - Math.PI / 2),
+                    item.y + item.size * Math.sin(i * 2 * Math.PI / 5 - Math.PI / 2)
+                );
+                ctx.lineTo(
+                    item.x + item.size/2 * Math.cos((i * 2 + 1) * Math.PI / 5 - Math.PI / 2),
+                    item.y + item.size/2 * Math.sin((i * 2 + 1) * Math.PI / 5 - Math.PI / 2)
+                );
+            }
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+        });
+    }
+
+    function drawEnemies() {
+        enemies.forEach(enemy => {
+            ctx.save();
+            ctx.drawImage(enemyImg, enemy.x, enemy.y, enemy.width, enemy.height);
+            ctx.restore();
+        });
+    }
+
+    // --- ゲームロジック ---
+    function updatePlayer() {
+        player.velocityY += gravity;
+        let onPlatform = false;
+        const groundLevel = canvas.height / dpr - groundHeight;
+
+        for (const obstacle of obstacles) {
+            const isHorizontallyAligned = player.x + player.width > obstacle.x && player.x < obstacle.x + obstacle.width;
+            const isVerticallyLanding = player.y <= obstacle.y && (player.y + player.velocityY) >= obstacle.y;
+            if (isHorizontallyAligned && isVerticallyLanding && player.velocityY > 0) {
+                player.y = obstacle.y;
+                player.velocityY = 0;
+                player.jumps = 0;
+                onPlatform = true;
+                break;
+            }
+        }
+        
+        if (!onPlatform) player.y += player.velocityY;
+
+        if (player.y > groundLevel) {
+            player.y = groundLevel;
+            player.velocityY = 0;
+            player.jumps = 0;
+        }
+    }
+
+    function updateObjects() {
+        // 障害物・アイテム・敵の生成
+        if (obstacles.length === 0 || obstacles[obstacles.length - 1].x < canvas.width / dpr - 200 - Math.random() * 200) {
+            const enemySpawnChance = 0.15; // 15%で敵を生成
+            if (Math.random() < enemySpawnChance) {
+                const enemySize = 40 + Math.random() * 30;
+                enemies.push({
+                    x: canvas.width / dpr,
+                    y: canvas.height / dpr - groundHeight - enemySize,
+                    width: enemySize,
+                    height: enemySize
+                });
+            } else {
+                // チートモードなら50%、通常なら2%の確率でアイテムを生成
+                const itemSpawnChance = cheatModeActive ? 0.5 : 0.02; 
+                if (Math.random() < itemSpawnChance && powerUps.length === 0) {
+                    powerUps.push({
+                        x: canvas.width / dpr,
+                        y: canvas.height / dpr * 0.6,
+                        size: 20
+                    });
+                } else {
+                    const obstacleHeight = 30 + Math.random() * 40;
+                    const obstacleWidth = 20 + Math.random() * 20;
+                    obstacles.push({
+                        x: canvas.width / dpr,
+                        y: canvas.height / dpr - groundHeight - obstacleHeight,
+                        width: obstacleWidth,
+                        height: obstacleHeight
+                    });
+                }
+            }
+        }
+        obstacles.forEach(o => o.x -= gameSpeed);
+        obstacles = obstacles.filter(o => o.x + o.width > 0);
+        
+        powerUps.forEach(p => p.x -= gameSpeed);
+        powerUps = powerUps.filter(p => p.x + p.size > 0);
+        enemies.forEach(e => e.x -= (gameSpeed + score / 200));
+        enemies = enemies.filter(e => e.x + e.width > 0);
+    }
+
+    function checkCollisions() {
+        // 障害物との衝突
+        if (!player.invincible) {
+            for (const obstacle of obstacles) {
+                if (player.x < obstacle.x + obstacle.width && player.x + player.width > obstacle.x &&
+                    player.y - player.height < obstacle.y + obstacle.height && player.y > obstacle.y) {
+                    gameOver = true;
+                    return;
+                }
+            }
+            // 敵との衝突（踏み判定）
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                const enemy = enemies[i];
+                // 踏み判定（範囲を狭める）
+                if (
+                    player.x < enemy.x + enemy.width &&
+                    player.x + player.width > enemy.x &&
+                    player.y > enemy.y &&
+                    player.y < enemy.y + enemy.height * 0.3 &&
+                    player.y - player.velocityY <= enemy.y &&
+                    player.velocityY > 0
+                ) {
+                    enemies.splice(i, 1);
+                    player.velocityY = -jumpForce * 0.7;
+                    score += 100;
+                    continue;
+                } else if (
+                    player.x < enemy.x + enemy.width &&
+                    player.x + player.width > enemy.x &&
+                    player.y - player.height < enemy.y + enemy.height &&
+                    player.y > enemy.y
+                ) {
+                    gameOver = true;
+                    return;
+                }
+            }
+        }
+        
+        // アイテムとの衝突
+        for (let i = powerUps.length - 1; i >= 0; i--) {
+            const item = powerUps[i];
+            const dx = player.x - item.x;
+            const dy = (player.y - player.height / 2) - item.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            if (distance < player.width + item.size) {
+                activateInvincibility();
+                powerUps.splice(i, 1);
+            }
+        }
+    }
+    
+    function activateInvincibility() {
+        itemSfx.triggerAttackRelease('C5', '0.5');
+        player.invincible = true;
+        clearTimeout(invincibleTimeout);
+        
+        let timeLeft = 5;
+        invincibleTimerDisplay.innerText = `無敵: ${timeLeft}秒`;
+        
+        const timer = setInterval(() => {
+            timeLeft--;
+            if(timeLeft > 0) {
+                invincibleTimerDisplay.innerText = `無敵: ${timeLeft}秒`;
+            } else {
+                clearInterval(timer);
+            }
+        }, 1000);
+
+        invincibleTimeout = setTimeout(() => {
+            player.invincible = false;
+            invincibleTimerDisplay.innerText = '';
+        }, 5000);
+    }
+    
+    function jump() {
+        if (!gameStarted) {
+            gameStarted = true;
+            startScreen.classList.add('hidden');
+            startAudio();
+            requestAnimationFrame(gameLoop);
+        }
+        if (player.jumps < 2) {
+            jumpSfx.triggerAttackRelease("C5", "8n");
+            player.velocityY = -jumpForce;
+            player.jumps++;
+        }
+    }
+
+    // --- ゲームループ ---
+    function gameLoop() {
+        if (gameOver) {
+            showGameOver();
+            return;
+        }
+
+        ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+        updatePlayer();
+        updateObjects();
+        checkCollisions();
+        drawGround();
+        drawPlayer();
+        drawObstacles();
+        drawEnemies();
+        drawPowerUps();
+
+        score++;
+        scoreEl.innerText = `スコア: ${score}`;
+        gameSpeed += 0.003;
+
+        requestAnimationFrame(gameLoop);
+    }
+    
+    // --- ゲームオーバー処理 ---
+    function showGameOver() {
+        clearTimeout(invincibleTimeout);
+        if (Tone.Transport.state === 'started') {
+            Tone.Transport.stop();
+            bgmSequence.stop(0);
+        }
+        finalScoreEl.innerText = `最終スコア: ${score}`;
+        if (score > highScore) {
+            highScore = score;
+            localStorage.setItem(HIGH_SCORE_KEY, highScore);
+            finalScoreEl.innerText += ' (ハイスコア更新！)';
+        }
+        gameOverScreen.classList.remove('hidden');
+    }
+    
+    // --- リスタート処理 ---
+    function restartGame() {
+        gameStarted = false;
+        init();
+    }
+
+    // --- イベントリスナー ---
+    document.addEventListener('keydown', e => {
+        const key = e.key.toLowerCase();
+        // ジャンプ処理
+        if (key === ' ') {
+            e.preventDefault();
+            if (!gameOver) jump();
+            return;
+        }
+        // 隠しコマンドの処理
+        if (!gameStarted) {
+             startAudio();
+        }
+        userInput.push(key);
+        userInput = userInput.slice(-cheatCode.length);
+        if (JSON.stringify(userInput) === JSON.stringify(cheatCode)) {
+            if (!cheatModeActive) {
+                cheatModeActive = true;
+                cheatSfx.triggerAttackRelease('C3', '8n'); // 目立たない成功音
+            }
+        }
+    });
+    canvas.addEventListener('click', () => { if (!gameOver) jump(); });
+    canvas.addEventListener('touchstart', e => {
+        e.preventDefault();
+        if (!gameOver) jump();
+    }, { passive: false });
+    // スマホでcanvas以外の場所でもジャンプできるように
+    document.body.addEventListener('touchstart', (e) => {
+        if (gameOver) return;
+        jump();
+    }, { passive: false });
+    restartButton.addEventListener('click', restartGame);
+    window.addEventListener('resize', init);
+    muteButton.addEventListener('click', () => {
+        Tone.Destination.mute = !Tone.Destination.mute;
+        muteButton.innerText = Tone.Destination.mute ? '🔇' : '🎵';
+    });
+
+    // --- ゲーム開始 ---
+    setupAudio();
+    init();
+
+    // --- 敵画像の読み込み ---
+    const enemyImg = new Image();
+    enemyImg.src = 'kuribo.png';
+
+</script>
+
+<!-- バージョン表記 -->
+<div style="text-align:center; color:#888; font-size:1rem; margin-top:1.5rem; font-family:'M PLUS Rounded 1c',sans-serif;">
+  ver.geoge
+</div>
+
+</body>
+</html>

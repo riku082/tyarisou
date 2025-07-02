@@ -625,9 +625,9 @@
             localStorage.setItem(HIGH_SCORE_KEY, highScore);
             finalScoreEl.innerText += ' (ハイスコア更新！)';
         }
-        // スコア送信＆ランキング取得
-        sendScoreToRanking(score);
-        fetchRanking();
+        // スコア送信＆ランキング取得（main.js経由）
+        window.sendScoreToRanking(score);
+        window.fetchRanking().then(showRanking);
         gameOverScreen.classList.remove('hidden');
     }
     
@@ -696,69 +696,14 @@
     const yuuyakeImg = new Image();
     yuuyakeImg.src = 'yuuyake.png';
 
-    // --- Firebase初期化 ---
-    const firebaseConfig = {
-      apiKey: "AIzaSyC_HcHZGly2GijG7Y07oSZSjrxP3CUCMRA",
-      authDomain: "abab-3k6tdx.firebaseapp.com",
-      projectId: "abab-3k6tdx",
-      storageBucket: "abab-3k6tdx.firebasestorage.app",
-      messagingSenderId: "5046366384",
-      appId: "1:5046366384:web:643cef12aa53f470250b75"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
-
-    // --- ニックネーム登録（初回のみ） ---
-    let nickname = localStorage.getItem('nickname');
-    if (!nickname) {
-      nickname = prompt('ニックネームを入力してください（10文字以内）');
-      if (nickname) {
-        nickname = nickname.slice(0, 10);
-        localStorage.setItem('nickname', nickname);
-      }
-    }
-
-    // --- スコア送信 ---
-    function sendScoreToRanking(score) {
-      console.log('送信データ:', nickname, score);
-      if (!nickname || !score || score <= 0) return;
-      db.collection('scores').add({
-        nickname: nickname,
-        score: score,
-        created: firebase.firestore.FieldValue.serverTimestamp()
-      }).then(() => {
-        console.log('送信成功');
-      }).catch(e => {
-        console.error('送信失敗', e);
-      });
-    }
-
-    // --- ランキング取得 ---
-    function fetchRanking() {
-      db.collection('scores')
-        .orderBy('score', 'desc')
-        .limit(10)
-        .get()
-        .then(snapshot => {
-          const ranking = [];
-          snapshot.forEach(doc => ranking.push(doc.data()));
-          showRanking(ranking);
-        });
-    }
-
-    function showRanking(ranking) {
-      const el = document.getElementById('ranking-list');
-      el.innerHTML = ranking.map((r, i) =>
-        `<li style="margin-bottom:0.3rem; font-size:1.1rem;">${i+1}位: <span style='font-weight:bold;'>${r.nickname}</span> - <span style='color:#e67e22;'>${r.score}</span></li>`
-      ).join('');
-    }
-
 </script>
 
 <!-- バージョン表記 -->
 <div style="text-align:center; color:#888; font-size:1rem; margin-top:1.5rem; font-family:'M PLUS Rounded 1c',sans-serif;">
   ver.geoge
 </div>
+
+<script type="module" src="main.js"></script>
 
 </body>
 </html>
