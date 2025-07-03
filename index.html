@@ -127,11 +127,19 @@
             <div style="text-align:center; color:#888; font-size:1rem; margin-bottom:0.5rem; font-family:'M PLUS Rounded 1c',sans-serif;">ver.geoge</div>
             <h1 class="text-4xl font-bold text-gray-800 mb-4">geosys run</h1>
             <p class="text-lg text-gray-600">スペースキー or タップでジャンプ！<br>⭐アイテムで5秒間無敵！</p>
+            <div style="margin-top:1.5rem; padding:1rem; background:rgba(255,255,255,0.8); border-radius:0.5rem; max-width:400px; margin-left:auto; margin-right:auto;">
+                <h3 style="font-size:1.2rem; font-weight:bold; margin-bottom:0.5rem; color:#333;">ランキングTOP10</h3>
+                <ol id="title-ranking-list" style="padding:0; list-style:none; max-height:200px; overflow-y:auto; text-align:left;"></ol>
+            </div>
         </div>
         <div id="gameOverScreen" class="hidden">
             <h2 class="text-3xl font-bold text-red-600">ゲームオーバー</h2>
             <p id="finalScore" class="text-xl mt-2"></p>
             <button id="restartButton">もう一度遊ぶ</button>
+            <div style="margin-top:1rem;">
+                <h3 style="font-size:1.2rem; font-weight:bold; margin-bottom:0.5rem;">ランキングTOP10</h3>
+                <ol id="ranking-list" style="padding:0; list-style:none; max-height:200px; overflow-y:auto;"></ol>
+            </div>
         </div>
     </div>
 </div>
@@ -142,7 +150,86 @@
   <ol id="ranking-list" style="padding:0; list-style:none;"></ol>
 </div>
 
-<script>
+<script type="module">
+    // Firebase SDK を読み込み
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+    import { getFirestore, collection, addDoc, query, where, orderBy, limit, getDocs, deleteDoc, doc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+    // Firebase設定
+    const firebaseConfig = {
+        apiKey: "AIzaSyC_HcHZGly2GijG7Y07oSZSjrxP3CUCMRA",
+        authDomain: "abab-3k6tdx.firebaseapp.com",
+        projectId: "abab-3k6tdx",
+        storageBucket: "abab-3k6tdx.firebasestorage.app",
+        messagingSenderId: "5046366384",
+        appId: "1:5046366384:web:4149441302f1f42e250b75"
+    };
+
+    // Firebase初期化
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // ニックネーム取得（localStorageから）
+    let nickname = localStorage.getItem('nickname');
+    if (!nickname) {
+        nickname = prompt('ニックネームを入力してください（10文字以内）');
+        if (nickname) {
+            nickname = nickname.slice(0, 10);
+            localStorage.setItem('nickname', nickname);
+        }
+    }
+
+    // スコア送信関数
+    async function sendScoreToRanking(score) {
+        if (!nickname || !score || score <= 0) return;
+        try {
+            // 既存の最高スコアを取得
+            const q = query(
+                collection(db, "scores"),
+                where("nickname", "==", nickname),
+                orderBy("score", "desc"),
+                limit(1)
+            );
+            const querySnapshot = await getDocs(q);
+
+            let shouldUpdate = true;
+            if (!querySnapshot.empty) {
+                const best = querySnapshot.docs[0].data();
+                if (best.score >= score) {
+                    shouldUpdate = false;
+                } else {
+                    // 既存のドキュメントを削除
+                    await deleteDoc(doc(db, "scores", querySnapshot.docs[0].id));
+                }
+            }
+
+            if (shouldUpdate) {
+                await addDoc(collection(db, "scores"), {
+                    nickname: nickname,
+                    score: score,
+                    created: serverTimestamp()
+                });
+                console.log('新記録で送信成功');
+            } else {
+                console.log('自己ベスト未更新のため送信しません');
+            }
+        } catch (e) {
+            console.error('送信失敗', e);
+        }
+    }
+
+    // ランキング取得関数
+    async function fetchRanking() {
+        try {
+            const q = query(collection(db, "scores"), orderBy("score", "desc"), limit(10));
+            const snapshot = await getDocs(q);
+            return snapshot.docs.map(doc => doc.data());
+        } catch (e) {
+            console.error('ランキング取得失敗', e);
+            return [];
+        }
+    }
+
     // --- 初期設定 ---
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
@@ -271,6 +358,30 @@
         startScreen.classList.remove('hidden');
         invincibleTimerDisplay.innerText = '';
         clearTimeout(invincibleTimeout);
+        
+        // タイトル画面表示時にランキングを読み込む
+        loadTitleRanking();
+    }
+    
+    // タイトル画面用ランキング読み込み
+    async function loadTitleRanking() {
+        try {
+            const ranking = await fetchRanking();
+            if (ranking.length > 0) {
+                showRanking(ranking, 'title-ranking-list');
+            } else {
+                const dummyRanking = [
+                    {nickname: 'まだ記録なし', score: 0}
+                ];
+                showRanking(dummyRanking, 'title-ranking-list');
+            }
+        } catch (e) {
+            console.error('タイトルランキング取得エラー:', e);
+            const dummyRanking = [
+                {nickname: '読み込みエラー', score: 0}
+            ];
+            showRanking(dummyRanking, 'title-ranking-list');
+        }
     }
 
     // --- 描画関数 ---
@@ -625,15 +736,45 @@
             localStorage.setItem(HIGH_SCORE_KEY, highScore);
             finalScoreEl.innerText += ' (ハイスコア更新！)';
         }
-        // スコア送信＆ランキング取得（ローカル保存/ダミー表示に戻す）
-        // ここに必要なら元のローカルランキング取得処理を復元
+        // スコア送信＆ランキング取得
+        sendScoreToRanking(score);
+        fetchRanking().then(ranking => {
+            if (ranking.length > 0) {
+                showRanking(ranking, 'ranking-list');
+            } else {
+                // ランキングが空の場合はダミー表示
+                const dummyRanking = [
+                    {nickname: 'まだ記録なし', score: 0}
+                ];
+                showRanking(dummyRanking, 'ranking-list');
+            }
+        }).catch(e => {
+            console.error('ランキング取得エラー:', e);
+            const dummyRanking = [
+                {nickname: 'エラー', score: 0}
+            ];
+            showRanking(dummyRanking, 'ranking-list');
+        });
         gameOverScreen.classList.remove('hidden');
+    }
+    
+    // ランキング表示関数
+    function showRanking(ranking, targetId = 'ranking-list') {
+      const el = document.getElementById(targetId);
+      if (!el) return;
+      el.innerHTML = ranking.map((r, i) =>
+        `<li style="margin-bottom:0.3rem; font-size:1.1rem;">${i+1}位: <span style='font-weight:bold;'>${r.nickname}</span> - <span style='color:#e67e22;'>${r.score}</span></li>`
+      ).join('');
     }
     
     // --- リスタート処理 ---
     function restartGame() {
         gameStarted = false;
         init();
+        // タイトルに戻った時にランキングを更新
+        setTimeout(() => {
+            loadTitleRanking();
+        }, 100);
     }
 
     // --- イベントリスナー ---
@@ -702,7 +843,7 @@
   ver.geoge
 </div>
 
-<script type="module" src="main.js"></script>
+<!-- main.jsは不要になったため削除 -->
 
 </body>
 </html>

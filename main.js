@@ -1,4 +1,5 @@
 import { initializeApp } from "firebase/app";
+import { getFirestore, collection, addDoc, query, where, orderBy, limit, getDocs, deleteDoc, doc, serverTimestamp } from "firebase/firestore";
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
 
@@ -14,6 +15,7 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
 // ニックネーム取得（localStorageから）
 let nickname = localStorage.getItem('nickname');
@@ -25,7 +27,57 @@ if (!nickname) {
   }
 }
 
-// Firestoreやランキング関連のコードをすべて削除
+// スコア送信
+async function sendScoreToRanking(score) {
+  if (!nickname || !score || score <= 0) return;
+  try {
+    // 既存の最高スコアを取得
+    const q = query(
+      collection(db, "scores"),
+      where("nickname", "==", nickname),
+      orderBy("score", "desc"),
+      limit(1)
+    );
+    const querySnapshot = await getDocs(q);
+
+    let shouldUpdate = true;
+    if (!querySnapshot.empty) {
+      const best = querySnapshot.docs[0].data();
+      if (best.score >= score) {
+        shouldUpdate = false;
+      } else {
+        // 既存のドキュメントを削除
+        await deleteDoc(doc(db, "scores", querySnapshot.docs[0].id));
+      }
+    }
+
+    if (shouldUpdate) {
+      await addDoc(collection(db, "scores"), {
+        nickname: nickname,
+        score: score,
+        created: serverTimestamp()
+      });
+      console.log('新記録で送信成功');
+    } else {
+      console.log('自己ベスト未更新のため送信しません');
+    }
+  } catch (e) {
+    console.error('送信失敗', e);
+  }
+}
+
+// ランキング取得
+async function fetchRanking() {
+  try {
+    const q = query(collection(db, "scores"), orderBy("score", "desc"), limit(10));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => doc.data());
+  } catch (e) {
+    console.error('ランキング取得失敗', e);
+    return [];
+  }
+}
+
 // windowに公開（HTMLからも呼べるように）
 window.sendScoreToRanking = sendScoreToRanking;
 window.fetchRanking = fetchRanking; 
