@@ -247,6 +247,7 @@
     let gameStarted = false;
     let bgmSynth, bgmSequence, jumpSfx, itemSfx, cheatSfx;
     let invincibleTimeout;
+    let bgmAudio;
     
     // --- 隠しコマンド関連 ---
     let cheatModeActive = false;
@@ -258,7 +259,12 @@
 
     // --- オーディオ設定 ---
     function setupAudio() {
-        // BGMシンセサイザー
+        // ホーム画面用BGM音声ファイル
+        bgmAudio = new Audio('naganawa sensei.mp3');
+        bgmAudio.loop = true;
+        bgmAudio.volume = 0.3;
+
+        // ゲームプレイ中BGMシンセサイザー
         bgmSynth = new Tone.PolySynth(Tone.Synth, {
             oscillator: { type: 'square' },
             envelope: { attack: 0.01, decay: 0.1, sustain: 0.2, release: 0.1 },
@@ -296,9 +302,19 @@
 
     async function startAudio() {
         if (Tone.context.state !== 'running') await Tone.start();
+        // ゲームプレイ中BGM再生
         if (bgmSequence.state !== 'started') {
             Tone.Transport.start();
             bgmSequence.start(0);
+        }
+    }
+
+    // ホーム画面BGM再生
+    async function startHomeBGM() {
+        try {
+            await bgmAudio.play();
+        } catch (error) {
+            console.log('ホームBGM再生エラー:', error);
         }
     }
 
@@ -361,6 +377,9 @@
         
         // タイトル画面表示時にランキングを読み込む
         loadTitleRanking();
+        
+        // ホーム画面BGM再生
+        startHomeBGM();
     }
     
     // タイトル画面用ランキング読み込み
@@ -689,6 +708,11 @@
         if (!gameStarted) {
             gameStarted = true;
             startScreen.classList.add('hidden');
+            // ホーム画面BGM停止
+            if (bgmAudio) {
+                bgmAudio.pause();
+                bgmAudio.currentTime = 0;
+            }
             startAudio();
             requestAnimationFrame(gameLoop);
         }
@@ -726,6 +750,7 @@
     // --- ゲームオーバー処理 ---
     function showGameOver() {
         clearTimeout(invincibleTimeout);
+        // ゲームプレイ中BGM停止
         if (Tone.Transport.state === 'started') {
             Tone.Transport.stop();
             bgmSequence.stop(0);
@@ -812,8 +837,16 @@
     restartButton.addEventListener('click', restartGame);
     window.addEventListener('resize', init);
     muteButton.addEventListener('click', () => {
+        if (bgmAudio) {
+            if (bgmAudio.muted) {
+                bgmAudio.muted = false;
+                muteButton.innerText = '🎵';
+            } else {
+                bgmAudio.muted = true;
+                muteButton.innerText = '🔇';
+            }
+        }
         Tone.Destination.mute = !Tone.Destination.mute;
-        muteButton.innerText = Tone.Destination.mute ? '🔇' : '🎵';
     });
 
     // --- ゲーム開始 ---
@@ -822,7 +855,7 @@
 
     // --- 敵画像の読み込み ---
     const enemyImg = new Image();
-    enemyImg.src = 'kuribo.png';
+    enemyImg.src = 'geoge.png';
 
     // --- 背景画像の読み込み ---
     const haikeiImg = new Image();
